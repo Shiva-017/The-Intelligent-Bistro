@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.expo/
+ios/
+android/
+.DS_Store
+Thumbs.db
+package-lock.json
