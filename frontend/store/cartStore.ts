@@ -8,8 +8,8 @@ export type CartItem = {
 };
 
 export type AIAction = {
-  action: "add" | "remove" | "update" | "clear" | "none";
-  items: { itemId: string; name: string; qty: number; price?: number }[];
+  action: string;
+  items: { itemId: string; name: string; qty: number; price?: number; op?: string }[];
 };
 
 type CartStore = {
@@ -52,18 +52,30 @@ export const useCartStore = create<CartStore>((set, get) => ({
       get().clearCart();
       return;
     }
+    if (action === "none") return;
+    // action === "changes" (or legacy add/update/remove for safety)
     items.forEach((item) => {
-      if (action === "add") {
-        get().addItem({
-          id: item.itemId,
-          name: item.name,
-          price: item.price ?? 0,
-          qty: item.qty,
-        });
-      } else if (action === "remove") {
+      // per-item op takes priority; fall back to top-level action for old responses
+      const op = item.op ?? action;
+      const existing = get().items.find((i) => i.id === item.itemId);
+
+      if (op === "remove") {
         get().removeItem(item.itemId);
-      } else if (action === "update") {
-        get().updateQty(item.itemId, item.qty);
+      } else if (op === "update") {
+        if (existing) {
+          get().updateQty(item.itemId, item.qty);
+        } else {
+          // defensive: Claude said update but item isn't in cart — add it
+          get().addItem({ id: item.itemId, name: item.name, price: item.price ?? 0, qty: item.qty ?? 1 });
+        }
+      } else {
+        // "add" or any unknown op
+        if (existing) {
+          // defensive: Claude said add but item exists — set to new qty instead of accumulating
+          get().updateQty(item.itemId, item.qty);
+        } else {
+          get().addItem({ id: item.itemId, name: item.name, price: item.price ?? 0, qty: item.qty ?? 1 });
+        }
       }
     });
   },

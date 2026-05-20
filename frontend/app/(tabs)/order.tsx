@@ -1,192 +1,274 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
   StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useChatStore, Message } from "../../store/chatStore";
 import { useCartStore } from "../../store/cartStore";
+import { useChatStore, Message } from "../../store/chatStore";
 import { API_URL } from "../../constants/api";
 
-type ChatResponse = {
-  action: "add" | "remove" | "update" | "clear" | "none";
-  items: { itemId: string; name: string; qty: number }[];
-  reply: string;
-};
+// ─── Typing indicator ─────────────────────────────────────────────────────────
+
+function TypingIndicator() {
+  const [dotCount, setDotCount] = useState(1);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDotCount((n) => (n === 3 ? 1 : n + 1));
+    }, 400);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <View style={styles.assistantWrapper}>
+      <View style={[styles.bubble, styles.assistantBubble]}>
+        <View style={styles.dotsRow}>
+          {[1, 2, 3].map((d) => (
+            <Text
+              key={d}
+              style={[styles.dot, { opacity: d <= dotCount ? 1 : 0.25 }]}
+            >
+              ●
+            </Text>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Message bubble ───────────────────────────────────────────────────────────
+
+function MessageBubble({ message }: { message: Message }) {
+  const isUser = message.role === "user";
+  const showCartPill =
+    !isUser &&
+    message.cartAction != null &&
+    message.cartAction.action !== "none";
+
+  if (isUser) {
+    return (
+      <View style={styles.userWrapper}>
+        <View style={[styles.bubble, styles.userBubble]}>
+          <Text style={styles.userText}>{message.text}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.assistantWrapper}>
+      <View style={[styles.bubble, styles.assistantBubble]}>
+        <Text style={styles.assistantText}>{message.text}</Text>
+      </View>
+      {showCartPill && (
+        <View style={styles.cartPillRow}>
+          <View style={styles.cartPill}>
+            <Text style={styles.cartPillText}>✓ Cart updated</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function OrderScreen() {
-  const [input, setInput] = useState("");
+  const scrollRef = useRef<ScrollView>(null);
+  const [inputText, setInputText] = useState("");
+
   const { messages, isLoading, addMessage, setLoading } = useChatStore();
   const { items: cartItems, applyAIAction } = useCartStore();
-  const listRef = useRef<FlatList>(null);
 
   async function handleSend() {
-    const text = input.trim();
+    const text = inputText.trim();
     if (!text) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: "user", text };
-    addMessage(userMsg);
-    setInput("");
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      text,
+    };
+    addMessage(userMessage);
+    setInputText("");
     setLoading(true);
 
     try {
-      const history = messages
-        .slice(-10)
-        .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
-
-      const res = await fetch(`${API_URL}/chat`, {
+      const response = await fetch(API_URL + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, cart: cartItems, history }),
+        body: JSON.stringify({
+          message: text,
+          cart: cartItems,
+          history: messages.slice(-10),
+        }),
       });
+      const data = await response.json();
 
-      const data: ChatResponse = await res.json();
-
-      if (data.action !== "none") {
-        applyAIAction({ action: data.action, items: data.items });
-      }
-
-      addMessage({
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        text: data.reply,
-        cartAction: data.action !== "none" ? { action: data.action, items: data.items } : undefined,
-      });
+        text: data.reply ?? "I didn't understand that.",
+        cartAction:
+          data.action !== "none"
+            ? { action: data.action, items: data.items ?? [] }
+            : undefined,
+      };
+      addMessage(assistantMessage);
+
+      if (data.action && data.action !== "none") {
+        applyAIAction({ action: data.action, items: data.items ?? [] });
+      }
     } catch {
       addMessage({
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        text: "Sorry, couldn't connect to server.",
+        text: "Sorry, I couldn't reach the server. Make sure the backend is running.",
       });
     } finally {
       setLoading(false);
     }
   }
 
-  function renderMessage({ item }: { item: Message }) {
-    const isUser = item.role === "user";
-    return (
-      <View>
-        <View style={isUser ? styles.userBubble : styles.assistantBubble}>
-          <Text style={isUser ? styles.userText : styles.assistantText}>{item.text}</Text>
-        </View>
-        {!isUser && item.cartAction && (
-          <View style={styles.cartPill}>
-            <Text style={styles.cartPillText}>✓ Cart updated</Text>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  const displayData: Message[] = isLoading
-    ? [{ id: "loading", role: "assistant", text: "●  ●  ●" }, ...messages].reverse()
-    : [...messages].reverse();
+  const canSend = inputText.trim().length > 0 && !isLoading;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      <FlatList
-        ref={listRef}
-        data={displayData}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        inverted
+      <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.listContent}
-      />
+        onContentSizeChange={() =>
+          scrollRef.current?.scrollToEnd({ animated: true })
+        }
+        keyboardShouldPersistTaps="handled"
+      >
+        {messages.map((msg) => (
+          <MessageBubble key={msg.id} message={msg} />
+        ))}
+        {isLoading && <TypingIndicator />}
+      </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={styles.inputBar}>
         <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Ask me anything about the menu..."
+          style={styles.textInput}
+          value={inputText}
+          onChangeText={setInputText}
+          placeholder="Message your bistro assistant..."
           placeholderTextColor="#9ca3af"
-          onSubmitEditing={handleSend}
           returnKeyType="send"
+          onSubmitEditing={handleSend}
           multiline={false}
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-          <Text style={styles.sendText}>↑</Text>
+        <TouchableOpacity
+          style={[styles.sendBtn, canSend && styles.sendBtnActive]}
+          onPress={handleSend}
+          disabled={!canSend}
+        >
+          <Text style={[styles.sendIcon, canSend && styles.sendIconActive]}>
+            ↑
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FAFAF8" },
-  listContent: { paddingVertical: 12 },
-  userBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: "#7C3AED",
+  listContent: { paddingVertical: 12, paddingBottom: 8 },
+
+  // wrappers
+  userWrapper: {
+    alignItems: "flex-end",
+    marginVertical: 4,
+    paddingHorizontal: 12,
+  },
+  assistantWrapper: {
+    alignItems: "flex-start",
+    marginVertical: 4,
+    paddingHorizontal: 12,
+  },
+
+  // bubbles
+  bubble: {
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginHorizontal: 12,
-    marginVertical: 4,
-    maxWidth: "75%",
+    maxWidth: "78%",
+  },
+  userBubble: {
+    backgroundColor: "#7C3AED",
+    borderBottomRightRadius: 4,
   },
   assistantBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 12,
-    marginVertical: 4,
-    maxWidth: "75%",
+    borderBottomLeftRadius: 4,
   },
-  userText: { color: "#fff", fontSize: 15 },
-  assistantText: { color: "#1a1a1a", fontSize: 15 },
+  userText: { color: "#ffffff", fontSize: 15, lineHeight: 22 },
+  assistantText: { color: "#1a1a1a", fontSize: 15, lineHeight: 22 },
+
+  // typing dots
+  dotsRow: { flexDirection: "row", alignItems: "center", paddingVertical: 2 },
+  dot: { fontSize: 18, color: "#9ca3af", marginHorizontal: 2 },
+
+  // cart pill
+  cartPillRow: { marginTop: 6, marginLeft: 4 },
   cartPill: {
     backgroundColor: "#dcfce7",
     borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 4,
+    paddingVertical: 5,
     alignSelf: "flex-start",
-    marginLeft: 12,
-    marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  cartPillText: { color: "#166534", fontSize: 12 },
-  bottomBar: {
+  cartPillText: { color: "#166534", fontSize: 12, fontWeight: "600" },
+
+  // input bar
+  inputBar: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
-    backgroundColor: "#FAFAF8",
+    backgroundColor: "#ffffff",
   },
-  input: {
+  textInput: {
     flex: 1,
+    height: 44,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    borderRadius: 24,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#fff",
     fontSize: 15,
+    backgroundColor: "#ffffff",
+    marginRight: 8,
     color: "#1a1a1a",
   },
   sendBtn: {
-    backgroundColor: "#7C3AED",
-    borderRadius: 24,
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
   },
-  sendText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  sendBtnActive: { backgroundColor: "#7C3AED" },
+  sendIcon: { fontSize: 20, color: "#9ca3af" },
+  sendIconActive: { color: "#ffffff" },
 });

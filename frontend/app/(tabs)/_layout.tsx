@@ -1,18 +1,36 @@
-import { Tabs } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
+import { Tabs, useRouter } from "expo-router";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useCartStore } from "../../store/cartStore";
 
+// ─── Cart badge overlay on tab icon ──────────────────────────────────────────
+
 function CartBadge() {
-  const count = useCartStore(
-    (s) => s.items.reduce((acc, i) => acc + i.qty, 0)
-  );
+  const count = useCartStore((s) => s.items.reduce((acc, i) => acc + i.qty, 0));
   if (count === 0) return null;
   return (
     <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count}</Text>
+      <Text style={styles.badgeText}>{count > 99 ? "99+" : count}</Text>
     </View>
   );
 }
+
+// ─── Cart pill in Order tab header ───────────────────────────────────────────
+
+function CartHeaderButton() {
+  const router = useRouter();
+  const count = useCartStore((s) => s.items.reduce((acc, i) => acc + i.qty, 0));
+  if (count === 0) return null;
+  return (
+    <TouchableOpacity
+      style={styles.headerPill}
+      onPress={() => router.push("/(tabs)/cart")}
+    >
+      <Text style={styles.headerPillText}>🛒 {count}</Text>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabLayout() {
   return (
@@ -40,6 +58,7 @@ export default function TabLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="order"
         options={{
@@ -48,8 +67,10 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <Text style={{ color, fontSize: 20 }}>💬</Text>
           ),
+          headerRight: () => <CartHeaderButton />,
         }}
       />
+
       <Tabs.Screen
         name="cart"
         options={{
@@ -67,6 +88,8 @@ export default function TabLayout() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   badge: {
     position: "absolute",
@@ -74,14 +97,19 @@ const styles = StyleSheet.create({
     right: -8,
     backgroundColor: "#ef4444",
     borderRadius: 8,
-    width: 16,
+    minWidth: 16,
     height: 16,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 2,
   },
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
+  headerPill: {
+    marginRight: 14,
+    backgroundColor: "#7C3AED",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
+  headerPillText: { color: "#ffffff", fontSize: 12, fontWeight: "bold" },
 });
