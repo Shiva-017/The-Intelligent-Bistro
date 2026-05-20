@@ -3,12 +3,25 @@ import {
   FlatList,
   SafeAreaView,
   StyleSheet,
-  Text,
+  Text as RNText,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useCartStore, CartItem } from "../../store/cartStore";
+import { XStack, YStack } from "tamagui";
+import { CartItem, useCartStore } from "../../store/cartStore";
+
+const C = {
+  ink: "#0F0F12",
+  inkSoft: "#3F3F46",
+  inkMuted: "#6B7280",
+  primary: "#7C3AED",
+  primarySoft: "#EDE9FE",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FAFAF8",
+  hairline: "#E5E7EB",
+  chip: "#F3F4F6",
+} as const;
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
@@ -16,13 +29,19 @@ function EmptyCart() {
   const router = useRouter();
   return (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyEmoji}>🛒</Text>
-      <Text style={styles.emptyTitle}>Your cart is empty</Text>
+      <View style={styles.emptyIconBubble}>
+        <RNText style={{ fontSize: 48 }}>🍽</RNText>
+      </View>
+      <RNText style={styles.emptyTitle}>Your table is set</RNText>
+      <RNText style={styles.emptyHelp}>
+        Browse the menu, or call your waiter — I'll add things to your tab as we chat.
+      </RNText>
       <TouchableOpacity
         style={styles.startBtn}
-        onPress={() => router.push("/(tabs)/order")}
+        onPress={() => router.push("/(tabs)/menu")}
+        activeOpacity={0.85}
       >
-        <Text style={styles.startBtnText}>Start Ordering</Text>
+        <RNText style={styles.startBtnText}>Browse the Menu</RNText>
       </TouchableOpacity>
     </View>
   );
@@ -43,22 +62,26 @@ function CartRow({
 }) {
   return (
     <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <Text style={styles.rowName}>{item.name}</Text>
-        <Text style={styles.rowPrice}>${item.price.toFixed(2)} each</Text>
-      </View>
-      <View style={styles.rowRight}>
-        <TouchableOpacity style={styles.qtyBtn} onPress={onDecrement}>
-          <Text style={styles.qtyBtnText}>−</Text>
+      <YStack flex={1}>
+        <RNText style={styles.itemName}>{item.name}</RNText>
+        <RNText style={styles.itemPrice}>${item.price.toFixed(2)} each</RNText>
+      </YStack>
+      <XStack alignItems="center" gap={2}>
+        <TouchableOpacity style={styles.qtyBtn} onPress={onDecrement} activeOpacity={0.7}>
+          <RNText style={styles.qtyBtnText}>−</RNText>
         </TouchableOpacity>
-        <Text style={styles.qtyText}>{item.qty}</Text>
-        <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnPlus]} onPress={onIncrement}>
-          <Text style={styles.qtyBtnPlusText}>+</Text>
+        <RNText style={styles.qtyValue}>{item.qty}</RNText>
+        <TouchableOpacity
+          style={[styles.qtyBtn, styles.qtyBtnPlus]}
+          onPress={onIncrement}
+          activeOpacity={0.7}
+        >
+          <RNText style={styles.qtyBtnPlusText}>+</RNText>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.removeBtn} onPress={onRemove}>
-          <Text style={styles.removeIcon}>🗑</Text>
+        <TouchableOpacity style={styles.removeBtn} onPress={onRemove} activeOpacity={0.6}>
+          <RNText style={{ fontSize: 16 }}>🗑</RNText>
         </TouchableOpacity>
-      </View>
+      </XStack>
     </View>
   );
 }
@@ -72,15 +95,15 @@ export default function CartScreen() {
   if (items.length === 0) return <EmptyCart />;
 
   function handlePlaceOrder() {
-    Alert.alert("Confirm Order", "Ready to place your order?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Send to the kitchen?", "We'll start preparing your order right away.", [
+      { text: "Not yet", style: "cancel" },
       {
-        text: "Place Order",
+        text: "Send it",
         onPress: () => {
           clearCart();
           Alert.alert(
-            "Order Placed! 🎉",
-            "Your food will be ready in ~20 minutes. Thank you!"
+            "Order placed! 🎉",
+            "Your food will be ready in about 20 minutes. Enjoy!"
           );
         },
       },
@@ -96,7 +119,10 @@ export default function CartScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.listHeader}>
-            <Text style={styles.listHeaderText}>My Order</Text>
+            <RNText style={styles.listHeaderTitle}>Your Tab</RNText>
+            <RNText style={styles.listHeaderSub}>
+              {itemCount} {itemCount === 1 ? "item" : "items"} ready to send to the kitchen
+            </RNText>
           </View>
         }
         renderItem={({ item }) => (
@@ -110,21 +136,24 @@ export default function CartScreen() {
         ListFooterComponent={
           <View style={styles.footer}>
             <View style={styles.footerRow}>
-              <Text style={styles.footerMeta}>Items</Text>
-              <Text style={styles.footerMeta}>{itemCount}</Text>
+              <RNText style={styles.footerMeta}>Items</RNText>
+              <RNText style={styles.footerMetaValue}>{itemCount}</RNText>
+            </View>
+            <View style={styles.footerRow}>
+              <RNText style={styles.footerMeta}>Subtotal</RNText>
+              <RNText style={styles.footerMetaValue}>${totalPrice().toFixed(2)}</RNText>
             </View>
             <View style={styles.divider} />
             <View style={styles.footerRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>
-                ${totalPrice().toFixed(2)}
-              </Text>
+              <RNText style={styles.totalLabel}>Total</RNText>
+              <RNText style={styles.totalAmount}>${totalPrice().toFixed(2)}</RNText>
             </View>
             <TouchableOpacity
               style={styles.placeOrderBtn}
               onPress={handlePlaceOrder}
+              activeOpacity={0.88}
             >
-              <Text style={styles.placeOrderText}>Place Order 🎉</Text>
+              <RNText style={styles.placeOrderText}>Send to the Kitchen 🍳</RNText>
             </TouchableOpacity>
           </View>
         }
@@ -137,99 +166,200 @@ export default function CartScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAF8" },
+  container: { flex: 1, backgroundColor: C.surfaceAlt },
   listContent: { paddingBottom: 32 },
 
-  // empty state
+  // empty
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: C.surfaceAlt,
     alignItems: "center",
-    backgroundColor: "#FAFAF8",
-  },
-  emptyEmoji: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, color: "#6b7280", fontWeight: "600" },
-  startBtn: {
-    marginTop: 24,
-    backgroundColor: "#7C3AED",
-    borderRadius: 14,
+    justifyContent: "center",
     paddingHorizontal: 32,
-    paddingVertical: 14,
   },
-  startBtnText: { color: "#ffffff", fontSize: 16, fontWeight: "bold" },
+  emptyIconBubble: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: C.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: {
+    fontFamily: "InterExtraBold",
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.ink,
+    marginTop: 20,
+  },
+  emptyHelp: {
+    fontFamily: "Inter",
+    fontSize: 14.5,
+    color: C.inkMuted,
+    marginTop: 8,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+  startBtn: {
+    marginTop: 28,
+    backgroundColor: C.primary,
+    borderRadius: 14,
+    paddingHorizontal: 34,
+    paddingVertical: 15,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  startBtnText: {
+    fontFamily: "InterExtraBold",
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
 
   // list header
-  listHeader: { padding: 16 },
-  listHeaderText: { fontSize: 22, fontWeight: "bold", color: "#1a1a1a" },
+  listHeader: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 },
+  listHeaderTitle: {
+    fontFamily: "InterExtraBold",
+    fontSize: 26,
+    fontWeight: "800",
+    color: C.ink,
+    letterSpacing: -0.5,
+  },
+  listHeaderSub: {
+    fontFamily: "Inter",
+    fontSize: 13.5,
+    color: C.inkMuted,
+    marginTop: 3,
+    fontStyle: "italic",
+  },
 
-  // item row
+  // row
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    marginHorizontal: 12,
-    marginVertical: 4,
-    borderRadius: 12,
+    backgroundColor: C.surface,
+    marginHorizontal: 14,
+    marginVertical: 5,
+    borderRadius: 14,
     padding: 14,
+    borderWidth: 1,
+    borderColor: C.hairline,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowRadius: 5,
     elevation: 1,
   },
-  rowLeft: { flex: 1 },
-  rowName: { fontSize: 15, fontWeight: "600", color: "#1a1a1a" },
-  rowPrice: { fontSize: 13, color: "#9ca3af", marginTop: 2 },
-  rowRight: { flexDirection: "row", alignItems: "center" },
+  itemName: {
+    fontFamily: "InterBold",
+    fontSize: 15.5,
+    fontWeight: "800",
+    color: C.ink,
+  },
+  itemPrice: {
+    fontFamily: "Inter",
+    fontSize: 12.5,
+    color: C.inkMuted,
+    marginTop: 2,
+  },
   qtyBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#f3f4f6",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.chip,
     alignItems: "center",
     justifyContent: "center",
   },
-  qtyBtnText: { fontSize: 18, color: "#374151", fontWeight: "bold" },
-  qtyBtnPlus: { backgroundColor: "#7C3AED" },
-  qtyBtnPlusText: { fontSize: 18, color: "#ffffff", fontWeight: "bold" },
-  qtyText: {
+  qtyBtnText: {
+    fontFamily: "InterExtraBold",
+    fontSize: 18,
+    color: C.inkSoft,
+    fontWeight: "800",
+  },
+  qtyBtnPlus: {
+    backgroundColor: C.primary,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  qtyBtnPlusText: {
+    fontFamily: "InterExtraBold",
+    fontSize: 18,
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  qtyValue: {
+    fontFamily: "InterBold",
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#1a1a1a",
-    width: 36,
+    fontWeight: "800",
+    color: C.ink,
+    width: 34,
     textAlign: "center",
   },
-  removeBtn: { marginLeft: 10 },
-  removeIcon: { fontSize: 18 },
+  removeBtn: { marginLeft: 8, padding: 6 },
 
   // footer
   footer: {
-    margin: 12,
-    marginTop: 4,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 32,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: C.hairline,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  footerMeta: { color: "#6b7280", fontSize: 14 },
-  divider: { height: 1, backgroundColor: "#f3f4f6", marginVertical: 10 },
-  totalLabel: { fontSize: 18, fontWeight: "bold", color: "#1a1a1a" },
-  totalAmount: { fontSize: 18, fontWeight: "bold", color: "#7C3AED" },
+  footerMeta: { fontFamily: "Inter", color: C.inkMuted, fontSize: 14 },
+  footerMetaValue: {
+    fontFamily: "InterSemiBold",
+    color: C.inkSoft,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  divider: { height: 1, backgroundColor: C.chip, marginVertical: 12 },
+  totalLabel: {
+    fontFamily: "InterExtraBold",
+    fontSize: 19,
+    fontWeight: "800",
+    color: C.ink,
+  },
+  totalAmount: {
+    fontFamily: "InterExtraBold",
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.primary,
+  },
   placeOrderBtn: {
-    marginTop: 16,
-    backgroundColor: "#7C3AED",
+    marginTop: 18,
+    backgroundColor: C.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  placeOrderText: { color: "#ffffff", fontSize: 17, fontWeight: "bold" },
+  placeOrderText: {
+    fontFamily: "InterExtraBold",
+    color: "#FFFFFF",
+    fontSize: 16.5,
+    fontWeight: "800",
+  },
 });

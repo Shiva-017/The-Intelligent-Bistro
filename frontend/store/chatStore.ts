@@ -22,7 +22,7 @@ export const useChatStore = create<ChatStore>((set) => ({
     {
       id: "welcome",
       role: "assistant",
-      text: "Hi! I'm your Bistro assistant. Try: 'Add 2 spicy chicken sandwiches and a water'",
+      text: "Bonjour, I'm Claude — your virtual waiter at The Bistro. 🍷\n\nTell me what you're craving and I'll get it on your tab. Try: \"a spicy chicken sandwich, two lemonades, and something sweet for after.\"",
     },
   ],
   isLoading: false,

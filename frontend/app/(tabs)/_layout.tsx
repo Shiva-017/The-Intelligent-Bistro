@@ -1,5 +1,6 @@
-import { Tabs, useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Tabs } from "expo-router";
+import { StyleSheet, Text as RNText, View } from "react-native";
+import FloatingChatBubble from "../../components/FloatingChatBubble";
 import { useCartStore } from "../../store/cartStore";
 
 // ─── Cart badge overlay on tab icon ──────────────────────────────────────────
@@ -9,24 +10,8 @@ function CartBadge() {
   if (count === 0) return null;
   return (
     <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 99 ? "99+" : count}</Text>
+      <RNText style={styles.badgeText}>{count > 99 ? "99+" : count}</RNText>
     </View>
-  );
-}
-
-// ─── Cart pill in Order tab header ───────────────────────────────────────────
-
-function CartHeaderButton() {
-  const router = useRouter();
-  const count = useCartStore((s) => s.items.reduce((acc, i) => acc + i.qty, 0));
-  if (count === 0) return null;
-  return (
-    <TouchableOpacity
-      style={styles.headerPill}
-      onPress={() => router.push("/(tabs)/cart")}
-    >
-      <Text style={styles.headerPillText}>🛒 {count}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -34,82 +19,92 @@ function CartHeaderButton() {
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: "#7C3AED",
-        tabBarInactiveTintColor: "#6b7280",
-        tabBarStyle: {
-          backgroundColor: "#FAFAF8",
-          borderTopColor: "#e5e7eb",
-          borderTopWidth: 1,
-        },
-        headerStyle: { backgroundColor: "#FAFAF8" },
-        headerTintColor: "#1a1a1a",
-        headerTitleStyle: { fontWeight: "bold" },
-      }}
-    >
-      <Tabs.Screen
-        name="menu"
-        options={{
-          title: "Menu",
-          tabBarLabel: "Menu",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 20 }}>🍽</Text>
-          ),
+    <View style={styles.root}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: "#7C3AED",
+          tabBarInactiveTintColor: "#9CA3AF",
+          tabBarStyle: {
+            backgroundColor: "#FFFFFF",
+            borderTopColor: "#E5E7EB",
+            borderTopWidth: 1,
+            height: 78,
+            paddingTop: 8,
+            paddingBottom: 18,
+          },
+          tabBarItemStyle: {
+            flex: 1, // force even distribution across both tabs
+            justifyContent: "center",
+          },
+          tabBarLabelStyle: {
+            fontFamily: "InterSemiBold",
+            fontSize: 11,
+            fontWeight: "700",
+            marginTop: 2,
+          },
+          headerStyle: { backgroundColor: "#FFFFFF" },
+          headerTintColor: "#0F0F12",
+          headerTitleStyle: {
+            fontFamily: "InterExtraBold",
+            fontSize: 18,
+            fontWeight: "800",
+          },
+          headerShadowVisible: false,
         }}
-      />
+      >
+        <Tabs.Screen
+          name="menu"
+          options={{
+            title: "Menu",
+            tabBarLabel: "Menu",
+            tabBarIcon: ({ color, focused }) => (
+              <RNText style={{ color, fontSize: focused ? 24 : 22 }}>🍽</RNText>
+            ),
+          }}
+        />
 
-      <Tabs.Screen
-        name="order"
-        options={{
-          title: "Order",
-          tabBarLabel: "Order",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 20 }}>💬</Text>
-          ),
-          headerRight: () => <CartHeaderButton />,
-        }}
-      />
+        <Tabs.Screen
+          name="cart"
+          options={{
+            title: "Your Tab",
+            tabBarLabel: "Tab",
+            tabBarIcon: ({ color, focused }) => (
+              <View>
+                <RNText style={{ color, fontSize: focused ? 24 : 22 }}>🧾</RNText>
+                <CartBadge />
+              </View>
+            ),
+          }}
+        />
+      </Tabs>
 
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: "Cart",
-          tabBarLabel: "Cart",
-          tabBarIcon: ({ color }) => (
-            <View>
-              <Text style={{ color, fontSize: 20 }}>🛒</Text>
-              <CartBadge />
-            </View>
-          ),
-        }}
-      />
-    </Tabs>
+      <FloatingChatBubble />
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   badge: {
     position: "absolute",
-    top: -4,
-    right: -8,
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    top: -5,
+    right: -10,
+    backgroundColor: "#EF4444",
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  headerPill: {
-    marginRight: 14,
-    backgroundColor: "#7C3AED",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  badgeText: {
+    fontFamily: "InterExtraBold",
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
   },
-  headerPillText: { color: "#ffffff", fontSize: 12, fontWeight: "bold" },
 });
